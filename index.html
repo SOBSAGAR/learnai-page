@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Learn.AI — Rion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #080A0E;
+    --surface: #0E1117;
+    --surface2: #13161E;
+    --border: rgba(255,255,255,0.07);
+    --border-hover: rgba(255,255,255,0.15);
+    --accent: #00E5FF;
+    --accent2: #7B61FF;
+    --text: #F0F2F7;
+    --text-muted: rgba(240,242,247,0.45);
+    --text-dim: rgba(240,242,247,0.25);
+    --glow: 0 0 40px rgba(0,229,255,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.6;
+  }
+
+  /* Background grid */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Radial glow blobs */
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .blob-1 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(0,229,255,0.07) 0%, transparent 70%);
+    top: -150px; left: -100px;
+  }
+  .blob-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(123,97,255,0.07) 0%, transparent 70%);
+    bottom: 100px; right: -100px;
+  }
+
+  /* Page wrapper */
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 60px 24px 80px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 0.7s ease forwards;
+  }
+
+  .avatar-wrap {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 20px;
+  }
+
+  .avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--bg);
+    letter-spacing: -1px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .avatar-ring {
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--accent), var(--accent2), var(--accent));
+    z-index: 0;
+    animation: spin 4s linear infinite;
+  }
+
+  .avatar-ring-mask {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    z-index: 0;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .live-dot {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 14px;
+    height: 14px;
+    background: #00FF88;
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+    z-index: 2;
+  }
+  .live-dot::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: rgba(0,255,136,0.3);
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.5); opacity: 0; }
+  }
+
+  .name {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+    background: linear-gradient(135deg, #fff 40%, rgba(255,255,255,0.6));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .handle {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  .bio {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    max-width: 340px;
+    margin: 0 auto 20px;
+    font-weight: 400;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 0;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .stat-num {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+
+  .stat-num span {
+    color: var(--accent);
+  }
+
+  .stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .stat-divider {
+    width: 1px;
+    background: var(--border);
+    align-self: stretch;
+  }
+
+  /* Section label */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    margin-top: 40px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Link cards */
+  .links {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .link-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    text-decoration: none;
+    color: var(--text);
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  .link-card.animate { animation: fadeUp 0.5s ease forwards; }
+
+  .link-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,229,255,0.04) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .link-card:hover {
+    border-color: var(--border-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), var(--glow);
+  }
+
+  .link-card:hover::before { opacity: 1; }
+
+  .link-card.featured {
+    border-color: rgba(0,229,255,0.2);
+    background: linear-gradient(135deg, rgba(0,229,255,0.06) 0%, var(--surface) 50%);
+  }
+
+  .link-card.featured:hover {
+    border-color: rgba(0,229,255,0.4);
+    box-shadow: 0 8px 40px rgba(0,229,255,0.12);
+  }
+
+  .link-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+  }
+
+  .link-card:hover .link-icon { transform: scale(1.05); }
+
+  .link-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .link-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+    letter-spacing: -0.2px;
+  }
+
+  .link-desc {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .link-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: rgba(0,229,255,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(0,229,255,0.2);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .link-badge.purple {
+    background: rgba(123,97,255,0.1);
+    color: #B8A9FF;
+    border-color: rgba(123,97,255,0.2);
+  }
+
+  .link-arrow {
+    color: var(--text-dim);
+    font-size: 16px;
+    flex-shrink: 0;
+    transition: transform 0.2s, color 0.2s;
+  }
+
+  .link-card:hover .link-arrow {
+    transform: translateX(3px);
+    color: var(--accent);
+  }
+
+  /* AI Chat section */
+  .ai-section {
+    margin-top: 0;
+  }
+
+  .chat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeUp 0.6s ease 0.7s forwards;
+  }
+
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .chat-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s ease infinite;
+  }
+
+  .chat-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .chat-subtitle {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+
+  .chat-body {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 80px;
+  }
+
+  .chat-msg {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .chat-msg.user { flex-direction: row-reverse; }
+
+  .chat-bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .chat-msg.ai .chat-bubble {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+
+  .chat-msg.user .chat-bubble {
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    color: var(--bg);
+    font-weight: 500;
+    border-bottom-right-radius: 4px;
+  }
+
+  .chat-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    font-weight: 700;
+  }
+
+  .chat-avatar.ai-av {
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    color: var(--bg);
+  }
+
+  .chat-avatar.user-av {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+
+  .chat-input-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .chat-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 13px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .chat-input::placeholder { color: var(--text-dim); }
+  .chat-input:focus { border-color: var(--border-hover); }
+
+  .chat-send {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--bg);
+    font-size: 16px;
+    flex-shrink: 0;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+
+  .chat-send:hover { opacity: 0.85; transform: scale(0.97); }
+  .chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .typing {
+    display: flex;
+    gap: 4px;
+    padding: 4px 0;
+  }
+
+  .typing span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    animation: bounce 1.2s ease infinite;
+  }
+
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-5px); }
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    margin-top: 48px;
+    opacity: 0;
+    animation: fadeUp 0.5s ease 0.9s forwards;
+  }
+
+  .footer-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .footer-text a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .footer-text a:hover { color: var(--accent); }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Mobile */
+  @media (max-width: 480px) {
+    .page { padding: 40px 16px 60px; }
+    .name { font-size: 24px; }
+    .stats-row { gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="avatar-wrap">
+      <div class="avatar-ring"></div>
+      <div class="avatar">R</div>
+      <div class="live-dot"></div>
+    </div>
+    <div class="name">Rion · Learn.AI</div>
+    <div class="handle">@learnai.future</div>
+    <p class="bio">Teaching AI tools that actually work — grew 0→10K, 3.6M+ views, brand deals, digital products. Built in Nepal, running from Korea.</p>
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-num">10<span>K+</span></div>
+        <div class="stat-label">Followers</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <div class="stat-num">3.6<span>M</span></div>
+        <div class="stat-label">Reel views</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <div class="stat-num">35<span>%</span></div>
+        <div class="stat-label">Affiliate</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Products -->
+  <div class="section-label">Products</div>
+  <div class="links">
+
+    <a href="#" class="link-card featured animate" style="animation-delay:0.1s">
+      <div class="link-icon">🧰</div>
+      <div class="link-info">
+        <div class="link-title">AI Toolkit</div>
+        <div class="link-desc">The exact tools I use to run Learn.AI</div>
+      </div>
+      <span class="link-badge">$12</span>
+      <span class="link-arrow">→</span>
+    </a>
+
+    <a href="#" class="link-card animate" style="animation-delay:0.18s">
+      <div class="link-icon">⚡</div>
+      <div class="link-info">
+        <div class="link-title">Krater.ai — AI Browser</div>
+        <div class="link-desc">Use code LEARNAI15 for 15% off</div>
+      </div>
+      <span class="link-badge">Affiliate</span>
+      <span class="link-arrow">→</span>
+    </a>
+
+  </div>
+
+  <!-- Services -->
+  <div class="section-label">Work with me</div>
+  <div class="links">
+
+    <a href="#" class="link-card animate" style="animation-delay:0.26s">
+      <div class="link-icon">🔍</div>
+      <div class="link-info">
+        <div class="link-title">Creator Income Audit</div>
+        <div class="link-desc">Find your top 3 monetization gaps — delivered in 48h</div>
+      </div>
+      <span class="link-badge">$97</span>
+      <span class="link-arrow">→</span>
+    </a>
+
+    <a href="#" class="link-card animate" style="animation-delay:0.32s">
+      <div class="link-icon">🤖</div>
+      <div class="link-info">
+        <div class="link-title">ManyChat Automation Setup</div>
+        <div class="link-desc">Comment triggers, DM sequences, lead capture</div>
+      </div>
+      <span class="link-badge">From $150</span>
+      <span class="link-arrow">→</span>
+    </a>
+
+    <a href="#" class="link-card animate" style="animation-delay:0.38s">
+      <div class="link-icon">🚀</div>
+      <div class="link-info">
+        <div class="link-title">Digital Product Launch Partner</div>
+        <div class="link-desc">I build your product & launch. Revenue share only.</div>
+      </div>
+      <span class="link-badge purple">Free · Rev share</span>
+      <span class="link-arrow">→</span>
+    </a>
+
+  </div>
+
+  <!-- Community -->
+  <div class="section-label">Connect</div>
+  <div class="links">
+
+    <a href="https://instagram.com/learnai.future" class="link-card animate" style="animation-delay:0.44s">
+      <div class="link-icon">📸</div>
+      <div class="link-info">
+        <div class="link-title">Instagram</div>
+        <div class="link-desc">@learnai.future · Daily AI content</div>
+      </div>
+      <span class="link-arrow">→</span>
+    </a>
+
+    <a href="#" class="link-card animate" style="animation-delay:0.50s">
+      <div class="link-icon">💬</div>
+      <div class="link-info">
+        <div class="link-title">Community</div>
+        <div class="link-desc">Join creators learning AI together</div>
+      </div>
+      <span class="link-arrow">→</span>
+    </a>
+
+  </div>
+
+  <!-- AI Chat -->
+  <div class="section-label">Ask Learn.AI anything</div>
+  <div class="ai-section">
+    <div class="chat-card">
+      <div class="chat-header">
+        <div class="chat-dot"></div>
+        <div class="chat-title">AI Assistant</div>
+        <div class="chat-subtitle">Powered by Claude</div>
+      </div>
+      <div class="chat-body" id="chat-body">
+        <div class="chat-msg ai">
+          <div class="chat-avatar ai-av">AI</div>
+          <div class="chat-bubble">Hey! I'm Rion's AI assistant. Ask me what Learn.AI offers, how to work with Rion, or anything about AI tools for creators. 👋</div>
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chat-input" type="text" placeholder="Ask me anything…" maxlength="200" />
+        <button class="chat-send" id="chat-send" onclick="sendMessage()">→</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-text">Built by Rion · <a href="https://instagram.com/learnai.future">@learnai.future</a></div>
+  </div>
+
+</div>
+
+<script>
+const SYSTEM_PROMPT = `You are a helpful assistant embedded on Rion's personal link-in-bio page for Learn.AI.
+
+Rion runs Learn.AI — an AI education brand on Instagram (@learnai.future) with 10K+ followers and 3.6M+ Reel views. Originally from Nepal, studying in South Korea.
+
+What Rion offers:
+1. AI Toolkit ($12) — a digital product with the exact tools Rion uses
+2. Creator Income Audit ($97) — account analysis, top 3 monetization opportunities, Loom video + 30-min call. Delivered in 48 hours.
+3. ManyChat Automation Setup ($150–500) — comment triggers, DM sequences, lead capture for creators
+4. Full Business Automation ($750–1,200) — Make.com workflows, AI integration, for small businesses
+5. Digital Product Launch Partner — FREE upfront, 30% revenue share. Rion builds your product and launch system.
+6. Krater.ai affiliate — use code LEARNAI15 for 15% off
+
+To work with Rion, DM on Instagram @learnai.future or ask here.
+
+Be concise, friendly, and direct. Max 2-3 sentences per reply. Don't make up prices or services not listed above.`;
+
+const chatBody = document.getElementById('chat-body');
+const chatInput = document.getElementById('chat-input');
+const chatSend = document.getElementById('chat-send');
+let messages = [];
+
+chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+function appendMsg(role, text) {
+  const isAI = role === 'ai';
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  div.innerHTML = `
+    <div class="chat-avatar ${isAI ? 'ai-av' : 'user-av'}">${isAI ? 'AI' : 'You'}</div>
+    <div class="chat-bubble">${text}</div>
+  `;
+  chatBody.appendChild(div);
+  chatBody.scrollTop = chatBody.scrollHeight;
+  return div;
+}
+
+function showTyping() {
+  const div = document.createElement('div');
+  div.className = 'chat-msg ai';
+  div.id = 'typing-indicator';
+  div.innerHTML = `
+    <div class="chat-avatar ai-av">AI</div>
+    <div class="chat-bubble"><div class="typing"><span></span><span></span><span></span></div></div>
+  `;
+  chatBody.appendChild(div);
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typing-indicator');
+  if (t) t.remove();
+}
+
+async function sendMessage() {
+  const text = chatInput.value.trim();
+  if (!text) return;
+
+  chatInput.value = '';
+  chatSend.disabled = true;
+  appendMsg('user', text);
+  messages.push({ role: 'user', content: text });
+  showTyping();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: messages
+      })
+    });
+
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || "Sorry, something went wrong. DM Rion directly on Instagram!";
+    messages.push({ role: 'assistant', content: reply });
+    removeTyping();
+    appendMsg('ai', reply);
+  } catch(e) {
+    removeTyping();
+    appendMsg('ai', "Something went wrong on my end. Reach out to Rion directly on Instagram @learnai.future!");
+  }
+
+  chatSend.disabled = false;
+  chatInput.focus();
+}
+</script>
+
+</body>
+</html>
