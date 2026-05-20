@@ -610,20 +610,19 @@
   <div class="section-label">Products</div>
   <div class="links">
 
-    <a href="#" class="link-card featured animate" style="animation-delay:0.1s">
+    <a href="https://collablearn.gumroad.com/l/cbsfci" target="_blank" class="link-card featured animate" style="animation-delay:0.1s">
       <div class="link-icon">🧰</div>
       <div class="link-info">
-        <div class="link-title">AI Toolkit</div>
+        <div class="link-title">Only AI Guide for 2026</div>
         <div class="link-desc">The exact tools I use to run Learn.AI</div>
       </div>
-      <span class="link-badge">$12</span>
       <span class="link-arrow">→</span>
     </a>
 
-    <a href="#" class="link-card animate" style="animation-delay:0.18s">
+    <a href="https://krater.ai/?amb=9198494f&coupon=LEARNAI15&utm_source=affiliate" target="_blank" class="link-card animate" style="animation-delay:0.18s">
       <div class="link-icon">⚡</div>
       <div class="link-info">
-        <div class="link-title">Krater.ai — AI Browser</div>
+        <div class="link-title">All in One AI</div>
         <div class="link-desc">Use code LEARNAI15 for 15% off</div>
       </div>
       <span class="link-badge">Affiliate</span>
@@ -642,7 +641,6 @@
         <div class="link-title">Creator Income Audit</div>
         <div class="link-desc">Find your top 3 monetization gaps — delivered in 48h</div>
       </div>
-      <span class="link-badge">$97</span>
       <span class="link-arrow">→</span>
     </a>
 
@@ -652,7 +650,6 @@
         <div class="link-title">ManyChat Automation Setup</div>
         <div class="link-desc">Comment triggers, DM sequences, lead capture</div>
       </div>
-      <span class="link-badge">From $150</span>
       <span class="link-arrow">→</span>
     </a>
 
@@ -698,8 +695,7 @@
     <div class="chat-card">
       <div class="chat-header">
         <div class="chat-dot"></div>
-        <div class="chat-title">AI Assistant</div>
-        <div class="chat-subtitle">Powered by Claude</div>
+        <div class="chat-title">Rion's Assistant</div>
       </div>
       <div class="chat-body" id="chat-body">
         <div class="chat-msg ai">
@@ -785,23 +781,26 @@ async function sendMessage() {
   showTyping();
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'llama-3.3-70b-versatile',
         max_tokens: 1000,
-        system: SYSTEM_PROMPT,
-        messages: messages
+        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages]
       })
     });
 
     const data = await res.json();
-    const reply = data.content?.[0]?.text || "Sorry, something went wrong. DM Rion directly on Instagram!";
+    if (!res.ok) {
+      console.error('API error:', res.status, JSON.stringify(data, null, 2));
+    }
+    const reply = data.choices?.[0]?.message?.content || "Sorry, something went wrong. DM Rion directly on Instagram!";
     messages.push({ role: 'assistant', content: reply });
     removeTyping();
     appendMsg('ai', reply);
   } catch(e) {
+    console.error('Chat fetch error:', e);
     removeTyping();
     appendMsg('ai', "Something went wrong on my end. Reach out to Rion directly on Instagram @learnai.future!");
   }
